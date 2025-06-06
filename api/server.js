@@ -1,52 +1,51 @@
-// File: api/server.js
+import { connect } from 'mongoose';
 
-import mongoose from 'mongoose';
+const MONGO_URL = 'mongodb://mongo:DPDJjeZDdLCNslCFufBPuVLaiJlVWuCE@mongodb.railway.internal:27017';
 
-let cached = global.mongoose || { conn: null, promise: null };
+let connection = null;
 
-async function connectToDatabase() {
-  if (cached.conn) return cached.conn;
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(
-      'mongodb://mongo:DPDJjeZDdLCNslCFufBPuVLaiJlVWuCE@mongodb.railway.internal:27017',
-      { useNewUrlParser: true, useUnifiedTopology: true }
-    ).then((mongoose) => {
-      return mongoose;
+async function connectToDB() {
+  if (!connection) {
+    connection = await connect(MONGO_URL, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
   }
-  cached.conn = await cached.promise;
-  return cached.conn;
 }
 
-// Schema
-const userSchema = new mongoose.Schema({
+// Define schema and model
+const mongoose = require('mongoose');
+const UserSchema = new mongoose.Schema({
   username: String,
-  password: String
+  password: String,
 });
-const User = mongoose.models.User || mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
+// Main handler
 export default async function handler(req, res) {
-  await connectToDatabase();
+  await connectToDB();
 
   if (req.method === 'POST') {
-    const { username, password, type } = req.body;
+    const { username, password } = req.body;
 
-    if (type === 'register') {
+    if (req.url.includes('/register')) {
       const exists = await User.findOne({ username });
-      if (exists) return res.status(400).json({ message: 'User already exists' });
+      if (exists) return res.status(400).send('User already exists');
 
       const user = new User({ username, password });
       await user.save();
-      return res.status(200).json({ message: 'Registered!' });
+      return res.status(200).send('Registered!');
     }
 
-    if (type === 'login') {
+    if (req.url.includes('/login')) {
       const user = await User.findOne({ username, password });
-      if (!user) return res.status(400).json({ message: 'Invalid credentials' });
-
-      return res.status(200).json({ message: 'Login successful!' });
+      if (!user) return res.status(400).send('Invalid credentials');
+      return res.status(200).send('Login successful!');
     }
+
+    return res.status(404).send('Invalid endpoint');
   }
 
-  return res.status(405).json({ message: 'Method Not Allowed' });
+  return res.status(405).send('Method Not Allowed');
 }
+
