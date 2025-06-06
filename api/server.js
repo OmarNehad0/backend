@@ -4,8 +4,10 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 
 const MONGO_URL = 'mongodb://mongo:DPDJjeZDdLCNslCFufBPuVLaiJlVWuCE@mongodb.railway.internal:27017';
+
 mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch(err => console.error("❌ MongoDB error:", err));
@@ -18,7 +20,7 @@ const User = mongoose.model('User', new mongoose.Schema({
   password: String
 }));
 
-app.post('/api/server/register', async (req, res) => {
+app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   const exists = await User.findOne({ username });
   if (exists) return res.status(400).send('User already exists');
@@ -26,12 +28,13 @@ app.post('/api/server/register', async (req, res) => {
   res.send('Registered!');
 });
 
-app.post('/api/server/login', async (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const user = await User.findOne({ username, password });
   if (!user) return res.status(400).send('Invalid credentials');
   res.send('Login successful!');
 });
 
-module.exports = app;
-
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
